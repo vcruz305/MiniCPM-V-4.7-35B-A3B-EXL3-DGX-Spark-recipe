@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "provenance": "publisher_model_card_transcription",
+  "source_model_revision": "855cb7601710064aeb7452b6b7e45e60a40be76b",
+  "new_gpu_runs_by_recipe_author": false,
+  "fidelity": {
+    "reference": "immutable BF16-reference final-logit stores",
+    "held_out": {
+      "top1": 0.93642578125,
+      "mean_kl_nats": 0.031476575675059786
+    },
+    "independent": {
+      "top1": 0.93134765625,
+      "mean_kl_nats": 0.03168882649150257
+    },
+    "pooled": {
+      "tokens": 20480,
+      "top1": 0.93388671875,
+      "mean_kl_nats": 0.03158270108328118
+    }
+  },
+  "target_only": {
+    "hardware": "one DGX Spark",
+    "decode_p50": 69.7,
+    "prefill_p50": 1024.0,
+    "ttft_p50_s": 1.103,
+    "e2e_output_tps": 53.57,
+    "concurrency": 1,
+    "prompt_tokens": 1024,
+    "completion_tokens": 256,
+    "warmups": 2,
+    "samples": 7,
+    "sampling": "greedy",
+    "prompt_scope": "uncached as reported by publisher",
+    "runtime_commit": null,
+    "kv_dtype": null,
+    "chunk_size": null
+  },
+  "memory": {
+    "text_8k_peak_cuda_gib": 20.33,
+    "separate_vision_4k_peak_cuda_gib": 18.33
+  },
+  "sixcat": {
+    "version": "0.7.0",
+    "overall": 79.17,
+    "correct": 95,
+    "items": 120,
+    "temperature": 0.7,
+    "seed": 1,
+    "thinking": true,
+    "concurrency": 4,
+    "first_scored": true,
+    "categories": {
+      "knowledge": 50,
+      "math": 100,
+      "truth": 80,
+      "instruct": 70,
+      "code": 85,
+      "tools": 90
+    },
+    "truncations": 0,
+    "low_confidence_parses": 0,
+    "instruction_loop_failures": 2
+  },
+  "vision": {
+    "precision_bits": 8,
+    "scope": "native synthetic red/blue functional smoke",
+    "correct": 2,
+    "items": 2,
+    "api_route_verified": false
+  },
+  "dspark_matched": {
+    "architecture": "Qwen3DSparkModel",
+    "width": 4,
+    "target_only_decode_p50": 69.33,
+    "draft_decode_p50": 45.31,
+    "target_only_prefill_p50": 764.18,
+    "draft_prefill_p50": 752.94,
+    "target_only_ttft_p50_s": 0.963,
+    "draft_ttft_p50_s": 1.035,
+    "accepted": 988,
+    "proposed": 1438,
+    "acceptance_percent": 68.71,
+    "relative_decode": 0.654,
+    "slower_percent": 34.65,
+    "parity_checks_passed": 27,
+    "parity_widths": [
+      1,
+      4,
+      14
+    ],
+    "default_recommended": false
+  }
+}

@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "repo_id": "vcruz305/MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw",
+  "revision": "855cb7601710064aeb7452b6b7e45e60a40be76b",
+  "architecture": "MiniCPMV4_7ForConditionalGeneration",
+  "target_weight_bytes": 17999304996,
+  "target_tensors": 125215,
+  "source": "Hugging Face model API with blobs=true; downloaded weights not recomputed during recipe preparation",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "size": 2475,
+      "hash_algorithm": "sha1",
+      "hash": "54bf1e5385c7f63c584910273bfa3eede0e00b5f"
+    },
+    {
+      "path": "README.md",
+      "size": 9525,
+      "hash_algorithm": "sha1",
+      "hash": "83982ca6d2b7316d42a9903223addb45ee579645"
+    },
+    {
+      "path": "chat_template.jinja",
+      "size": 7250,
+      "hash_algorithm": "sha1",
+      "hash": "0948ab105fab2a52f84bdc85c3a784221f8452d4"
+    },
+    {
+      "path": "config.json",
+      "size": 3981,
+      "hash_algorithm": "sha1",
+      "hash": "c4823dcafa287c042fdca6957e1f21a1a84506ef"
+    },
+    {
+      "path": "dspark/.gitattributes",
+      "size": 50,
+      "hash_algorithm": "sha1",
+      "hash": "580d310c2d211aca166288a207e972ced9bb0100"
+    },
+    {
+      "path": "dspark/config.json",
+      "size": 1410,
+      "hash_algorithm": "sha1",
+      "hash": "1b4b84d998b422f24cd4beb4ae104a0742dd85ba"
+    },
+    {
+      "path": "dspark/model.safetensors",
+      "size": 778452858,
+      "hash_algorithm": "sha256",
+      "hash": "211eda7b962795ba727b0d7db072d8c474dc3b94075f85f123fe363caf5e9679"
+    },
+    {
+      "path": "generation_config.json",
+      "size": 186,
+      "hash_algorithm": "sha1",
+      "hash": "1a439b70e785a3025c7e4cca6386d94033907266"
+    },
+    {
+      "path": "model-00001-of-00019.safetensors",
+      "size": 508798012,
+      "hash_algorithm": "sha256",
+      "hash": "a0611a82883e5c1a93c420dcccf97ef08e9f57173a1a1c8d2cbf0334ea762222"
+    },
+    {
+      "path": "model-00002-of-00019.safetensors",
+      "size": 1016397952,
+      "hash_algorithm": "sha256",
+      "hash": "c2f3e2b731986710db6a83cc1882bfcf2ff23e36a082c142b6cf0c980c995d09"
+    },
+    {
+      "path": "model-00003-of-00019.safetensors",
+      "size": 1000379932,
+      "hash_algorithm": "sha256",
+      "hash": "0faee370d5d9313efc667cd41dbbec148516bb9a4fe0976dcfae42daf35f7d29"
+    },
+    {
+      "path": "model-00004-of-00019.safetensors",
+      "size": 1000547904,
+      "hash_algorithm": "sha256",
+      "hash": "51b1a9373ef9b4d6f17ee70df006578431007353750d2ee06f81c21885193d52"
+    },
+    {
+      "path": "model-00005-of-00019.safetensors",
+      "size": 1000695428,
+      "hash_algorithm": "sha256",
+      "hash": "a89ed91c44d1390d38408458bcca706f217ad5657139f74abbe0854b19b9d86a"
+    },
+    {
+      "path": "model-00006-of-00019.safetensors",
+      "size": 1000516628,
+      "hash_algorithm": "sha256",
+      "hash": "1fabc7595e90caf9997a8ceeee7f539c792fc993348f0cdf9f19b367efae9c24"
+    },
+    {
+      "path": "model-00007-of-00019.safetensors",
+      "size": 1000861916,
+      "hash_algorithm": "sha256",
+      "hash": "6a892fd28c676b5b40fc002085adbafa50ed1687f8201f362b66393b10332dfe"
+    },
+    {
+      "path": "model-00008-of-00019.safetensors",
+      "size": 996719432,
+      "hash_algorithm": "sha256",
+      "hash": "7c5179d4dc94cb614906f646701528b3342ed07576264ac9b72b32e96573ea89"
+    },
+    {
+      "path": "model-00009-of-00019.safetensors",
+      "size": 1000835388,
+      "hash_algorithm": "sha256",
+      "hash": "1a83b0fd97c5d1be9252030b0692e920b84ef14f650c70062bdac8e448d030ad"
+    },
+    {
+      "path": "model-00010-of-00019.safetensors",
+      "size": 1000828936,
+      "hash_algorithm": "sha256",
+      "hash": "9ebfedf5257598ce41b013abbcac6cb6e67e390dac19180146e46c693848fd25"
+    },
+    {
+      "path": "model-00011-of-00019.safetensors",
+      "size": 1000910768,
+      "hash_algorithm": "sha256",
+      "hash": "4110b19a9d64ac66cebb5dc4b4bb4b639a20c40bb8526107018472014adf2f3c"
+    },
+    {
+      "path": "model-00012-of-00019.safetensors",
+      "size": 1000921812,
+      "hash_algorithm": "sha256",
+      "hash": "ab09e691608c4ca7b89eb0a5b88ae5f2dc48df571c725e5e801caa2f22edf07b"
+    },
+    {
+      "path": "model-00013-of-00019.safetensors",
+      "size": 1000860192,
+      "hash_algorithm": "sha256",
+      "hash": "b76cc568b614e394ea358bb0224ff408fbd562bdf62ddc796ea0c97b3444477e"
+    },
+    {
+      "path": "model-00014-of-00019.safetensors",
+      "size": 1001027556,
+      "hash_algorithm": "sha256",
+      "hash": "2313885e9742a4ceef11c3210c895d6db13e1a588b670f9702910677e0b5f0bb"
+    },
+    {
+      "path": "model-00015-of-00019.safetensors",
+      "size": 1000881708,
+      "hash_algorithm": "sha256",
+      "hash": "9ccbdee91b67170f7b8c37252b39641bad38060a6df2db9d53852f41040def88"
+    },
+    {
+      "path": "model-00016-of-00019.safetensors",
+      "size": 1000645168,
+      "hash_algorithm": "sha256",
+      "hash": "72fe769c89942f86e09a0ea9c93e0c0654dc552ad08499c0370d1f65825fc209"
+    },
+    {
+      "path": "model-00017-of-00019.safetensors",
+      "size": 995038976,
+      "hash_algorithm": "sha256",
+      "hash": "c90834c087febe91a2a5e5d7fd11be81d90e1a8c20de7e639055865574c64fcd"
+    },
+    {
+      "path": "model-00018-of-00019.safetensors",
+      "size": 997622556,
+      "hash_algorithm": "sha256",
+      "hash": "2f8022cab2b056f1de94a6ab968369fb959ed1b86eff501c3f7eb3abb4126d4b"
+    },
+    {
+      "path": "model-00019-of-00019.safetensors",
+      "size": 474814732,
+      "hash_algorithm": "sha256",
+      "hash": "3395b9ed134520b07236db262af7541031461217b05d4e160c9f55590f3e0cae"
+    },
+    {
+      "path": "model.safetensors.index.json",
+      "size": 13001852,
+      "hash_algorithm": "sha256",
+      "hash": "0c4497bfb067c1020f3014b7be10701d910e57a982d08fb87fd65bdf0b7af3da"
+    },
+    {
+      "path": "preprocessor_config.json",
+      "size": 148,
+      "hash_algorithm": "sha1",
+      "hash": "a7334d890fcf56c83bc3265d9f71f599b0048289"
+    },
+    {
+      "path": "processor_config.json",
+      "size": 2,
+      "hash_algorithm": "sha1",
+      "hash": "9e26dfeeb6e641a33dae4961196235bdb965b21b"
+    },
+    {
+      "path": "tokenizer.json",
+      "size": 20001935,
+      "hash_algorithm": "sha256",
+      "hash": "e4608c5d7b3f4f30ba83be16a82cdac856b2e7191d40f0a08cbacc76c2a926ee"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "size": 8976,
+      "hash_algorithm": "sha1",
+      "hash": "0a3f9f38c8e93e675eb6c120b2d416b296a33ff9"
+    }
+  ]
+}

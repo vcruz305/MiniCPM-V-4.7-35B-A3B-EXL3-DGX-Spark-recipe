@@ -1,0 +1,10 @@
+.state/
+results/
+config.preview.yml
+.download-venv/
+.venv/
+__pycache__/
+*.pyc
+api_tokens.yml
+.env
+*.log
