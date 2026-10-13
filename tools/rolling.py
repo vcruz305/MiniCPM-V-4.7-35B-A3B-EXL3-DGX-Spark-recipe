@@ -77,12 +77,15 @@ def runtime_probe(python, tabby, model=None, vision=False):
 
 
 def base_environment(python):
-    program = '''import torch,sys,json,importlib.metadata as m
+    program = '''import torch,triton,sys,json,importlib.metadata as m
+from pathlib import Path
 assert torch.cuda.is_available(), 'A working CUDA PyTorch environment is required'
-try: triton = m.version('triton')
+try: triton_version = m.version('triton')
 except m.PackageNotFoundError: raise RuntimeError('Install compatible Triton in the base CUDA environment first')
+site_paths=sorted(set(str(Path(mod.__file__).resolve().parents[1]) for mod in (torch,triton)))
 print('BASE_JSON='+json.dumps({'python':sys.executable,'python_version':sys.version.split()[0],
-    'torch':torch.__version__,'triton':triton,'cuda':torch.version.cuda,
+    'torch':torch.__version__,'triton':triton_version,'cuda':torch.version.cuda,
+    'cuda_site_packages':site_paths,
     'arch':'%d.%d'%torch.cuda.get_device_capability(0)}))'''
     text = output([str(python), '-c', program])
     rows = [x for x in text.splitlines() if x.startswith('BASE_JSON=')]
@@ -143,6 +146,29 @@ def verify_runtime(record):
     return fresh
 
 
+def expose_base_cuda_packages(venv_python: str, base: dict):
+    # Python -m venv --system-site-packages does not inherit packages installed
+    # in a *parent virtualenv*. Add the package directories containing the CUDA
+    # Torch/Triton installations so managed runtime can use the user's working
+    # GPU stack without reinstalling or changing it.
+    sites = base.get('cuda_site_packages')
+    if not isinstance(sites, list) or not sites:
+        raise RuntimeError('Cannot locate base CUDA PyTorch/Triton site-packages')
+    destination = Path(output([venv_python, '-c',
+                               'import sysconfig; print(sysconfig.get_paths()["purelib"])']))
+    destination.mkdir(parents=True, exist_ok=True)
+    validated = []
+    for site in sites:
+        if not isinstance(site, str) or '\n' in site or '\r' in site:
+            raise RuntimeError('Invalid CUDA site-packages path')
+        resolved = Path(site).resolve()
+        if not resolved.is_dir(): raise RuntimeError(f'Base CUDA site-packages is missing: {resolved}')
+        validated.append(str(resolved))
+    (destination / 'base-cuda-environment.pth').write_text('\n'.join(validated) + '\n')
+    # Fail before pip if Torch and Triton are not importable from this new venv.
+    output([venv_python, '-c', 'import torch,triton; assert torch.cuda.is_available()'])
+
+
 def build_candidate(home, sources, base_python, base, key):
     destination = home / 'builds' / (time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + '-' + uuid.uuid4().hex[:8])
     destination.mkdir(parents=True, exist_ok=False)
@@ -158,6 +184,7 @@ def build_candidate(home, sources, base_python, base, key):
     venv = destination / 'venv'
     subprocess.run([base_python, '-m', 'venv', '--system-site-packages', str(venv)], check=True)
     py = str(venv / 'bin/python')
+    expose_base_cuda_packages(py, base)
     # Preserve the user's existing hardware-specific CUDA stack, not a fixed recipe version.
     constraints = destination / 'local-cuda-constraints.txt'
     constraints.write_text(f'torch=={base["torch"]}\ntriton=={base["triton"]}\n')

@@ -1,6 +1,6 @@
 # Recipe tests
 
-CPU-only checks, not CUDA/model qualification:
+71 CPU-only checks passed locally (2026-10-13), not CUDA/model qualification:
 
 ```bash
 python3 -m unittest discover -s tests -v

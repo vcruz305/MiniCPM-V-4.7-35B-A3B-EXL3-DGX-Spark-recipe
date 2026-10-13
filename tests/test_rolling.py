@@ -126,6 +126,25 @@ class RollingTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,"compile failed"):
                     rolling.ensure_latest(home,state)
             self.assertEqual(json.loads((home/"active.json").read_text()),data)
+    def test_base_cuda_virtualenv_packages_are_visible(self):
+        # Simulate a CUDA environment in a separate site directory. The
+        # managed venv must inherit it even if BASE_PYTHON was itself a venv.
+        import subprocess
+        import sys
+        with tempfile.TemporaryDirectory() as t:
+            root=Path(t); site=root/'base-site';site.mkdir()
+            (site/'torch.py').write_text('class cuda:\n    @staticmethod\n    def is_available(): return True\n')
+            (site/'triton.py').write_text('\n')
+            venv=root/'managed'
+            subprocess.run([sys.executable,'-m','venv','--system-site-packages',str(venv)],check=True,
+                           stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            py=str(venv/'bin/python')
+            rolling.expose_base_cuda_packages(py,{'cuda_site_packages':[str(site)]})
+            found=subprocess.check_output([py,'-c','import torch,triton;print(torch.__file__)'],text=True).strip()
+            self.assertEqual(Path(found),site/'torch.py')
+    def test_base_cuda_site_missing_fails(self):
+        with self.assertRaisesRegex(RuntimeError,'Cannot locate'):
+            rolling.expose_base_cuda_packages(sys.executable,{'cuda_site_packages':[]})
     def test_keys_stable_across_builds(self):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t); state=root/"state";state.mkdir()
