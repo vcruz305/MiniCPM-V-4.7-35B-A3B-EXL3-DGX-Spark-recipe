@@ -53,12 +53,10 @@ class ConfigTests(unittest.TestCase):
             r=subprocess.run([sys.executable,str(ROOT/'tools/manage.py'),'preview'],env=env,capture_output=True,text=True)
             self.assertEqual(r.returncode,0,r.stderr)
             self.assertFalse((Path(td)/'adoption.json').exists())
-    def test_setup_refuses_missing_pins(self):
-        with tempfile.TemporaryDirectory() as td:
-            env=dict(os.environ, STATE_DIR=td)
-            for key in ('EXLLAMAV3_REF','TABBY_REF'):env.pop(key,None)
-            r=subprocess.run([sys.executable,str(ROOT/'tools/manage.py'),'setup','--build'],env=env,capture_output=True,text=True)
-            self.assertNotEqual(r.returncode,0);self.assertIn('Public qualified pins',r.stderr)
+    def test_latest_runtime_policy(self):
+        policy=read_json(ROOT/'runtime.json')
+        self.assertEqual(policy['policy'],'latest-default-branches')
+        self.assertFalse(policy['fixed_versions'])
 
 class IntegrityTests(unittest.TestCase):
     def test_parent_escape(self):
@@ -87,7 +85,7 @@ class IntegrityTests(unittest.TestCase):
         d=read_json(ROOT/'model.lock.json');w=next(x for x in d['files'] if x['path']=='dspark/model.safetensors')
         self.assertEqual(w['size'],778452858);self.assertEqual(w['hash'],'211eda7b962795ba727b0d7db072d8c474dc3b94075f85f123fe363caf5e9679')
     def test_model_revision_immutable(self): self.assertRegex(read_json(ROOT/'model.lock.json')['revision'],r'^[a-f0-9]{40}$')
-    def test_runtime_gap_explicit(self): self.assertIsNone(read_json(ROOT/'runtime.lock.json')['qualified']['exllamav3_commit'])
+    def test_runtime_sources_are_moving(self): self.assertIn('exllamav3',read_json(ROOT/'runtime.json')['repositories'])
     def test_atomic_private_record(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/'record.json';atomic_json(p,{'ok':True})

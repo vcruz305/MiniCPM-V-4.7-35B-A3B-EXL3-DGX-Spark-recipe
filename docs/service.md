@@ -11,7 +11,7 @@ ssh -L 8898:127.0.0.1:8898 USER@YOUR_SPARK
 
 Set `TABBY_API_KEY` to the inference key on the client. Never publish the
 admin key, api_tokens.yml, or a private deployment receipt. The server runs in
-the adopted TabbyAPI directory, so that server's private key store remains there.
+the managed TabbyAPI source directory. Its private api_tokens.yml is a symlink to the stable, private STATE_DIR key store and survives fork upgrades.
 
 `STATE_DIR` is locked for the life of the launched server. Busy ports fail instead
 of silently changing numbers. Optional `GPU_LOCK_FILE` provides cooperative

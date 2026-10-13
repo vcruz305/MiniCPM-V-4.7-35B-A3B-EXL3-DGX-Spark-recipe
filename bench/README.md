@@ -34,8 +34,7 @@ prefix was reused. This helper does not claim 1,024 uncached prompt tokens.
 
 ## Reproducing the publisher's exact speed table
 
-Requires the original runtime and benchmark harness, which the card does not
-publish. The recorded contract is 1,024 uncached prompt tokens, 256 completion
+The original benchmark harness and its full runtime settings are not published in the model card, although MiniCPM support is now in the public fork. The recorded contract is 1,024 uncached prompt tokens, 256 completion
 tokens, greedy, concurrency 1, two warmups and seven samples. Also capture actual
 KV dtype, prefill chunk, vision state, server/engine commits, GPU clocks and
 memory. Reject mismatched token lengths rather than silently average them.

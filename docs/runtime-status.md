@@ -1,40 +1,43 @@
-# Runtime publication status
+# Runtime source and updates
 
-The pinned HF card says a qualified ExLlamaV3 fork served this model, including
-native MiniCPM vision and a correctness-first Qwen3DSparkModel path. It does not
-identify its source commit, patch files, TabbyAPI commit, or dependency freeze.
+The current ExLlamaV3 fork includes MiniCPM-V 4.7 with native
+text and vision support:
+- `exllamav3/architecture/minicpmv4_7.py` for MiniCPM text and
+  canvas M-RoPE;
+- `minicpmv4_7_vision.py` and `mm_processing/minicpmv4_7.py`
+  for the vision and image pipelines;
+- `qwen3_dspark.py` for the separate dedicated dSparK model;
+- entries in the runtime's architecture registry.
 
-The publicly inspected vcruz305/exllamav3 master was
-`4d98d39ac22641231356e9a431eb1d0c12625fc2`. Its source contains neither the shipped
-`MiniCPMV4_7ForConditionalGeneration` registration nor `Qwen3DSparkModel`.
-The public TabbyAPI fork inspected for config schema was
-`17ad217f2bc35e8bc5efee4da4d0c3176faba6d4`.
-These are inspection identities, NOT claimed working MiniCPM pins.
+These changes were merged into the current default branch, so
+the earlier missing-support warning no longer applies.
 
-The target config is model_type minicpmv4_7, with a qwen3_5_moe_text backbone,
-a 27-layer vision tower, 16x downsampling and insertion at layer 6. Renaming it
-to a generic Qwen architecture would discard part of its contract. We do not do it.
+## Always use the latest forks
 
-## What works in this recipe today
+The runtime policy resolves both Git remotes' symbolic HEAD at
+each setup/start, regardless of whether the default branch is
+`main` or `master`. A changed HEAD, compiler/CUDA environment
+or installer source causes a staged rebuild. Unchanged installations
+are checked and reused.
 
-1. Pin and verify the public model files without downloading BF16 weights.
-2. Adopt an existing MiniCPM-capable Python + TabbyAPI environment without updating it.
-3. Check the runtime architecture registry before model loading.
-4. Generate conservative target-only configs, capture local runtime identities,
-   and run text/API/vision verification helpers.
-5. Build from user-supplied immutable MiniCPM source commits in a separate location.
+A staged installation is activated only after pip and runtime
+checks pass. If updating fails, the previous installation remains
+untouched but the requested new launch exits. An already-running
+server is never replaced or stopped.
 
-The third item is a compatibility check, not proof of numerical correctness.
-A changed local source digest forces re-adoption rather than silently claiming
-that an earlier runtime receipt still applies.
+No fixed software versions, tags or commits are selected.
+For benchmark attribution only, private `active.json` and
+`deployment.json` retain resolved SHAs and environment identities.
+These values are not inputs to future version selection.
 
-## Publish the missing runtime reproducibly
+The installer retains the user's existing hardware-compatible
+PyTorch/Triton stack rather than replacing it with generic
+architecture-incompatible wheels.
 
-From the actual qualified installation, run the recipe's setup --adopt command.
-Its private adoption.json records Python/package versions, CUDA/device identity,
-source hashes and Git metadata. Review that report locally; do not upload it
-unredacted. Publish the reviewed runtime changes in their own repository and
-supply immutable Git refs, including any vision and TabbyAPI integration patches.
-Then fill runtime.lock.json's qualified fields and rerun a clean installation.
+## Qualification scope
 
-No source code or inference behavior is patched by this recipe.
+Runtime source availability does not itself establish a clean
+on-device installation or downstream model quality. The
+publisher's speed and fidelity results are retained separately.
+24 GB discrete GPU fit, two-model co-residency and full long
+context still require controlled on-hardware validation.

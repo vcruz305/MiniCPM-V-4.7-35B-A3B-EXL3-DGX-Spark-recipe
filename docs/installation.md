@@ -1,53 +1,77 @@
 # Installation
 
-## A. Existing MiniCPM-enabled environment (recommended until runtime is published)
+## Install the current forks
 
-Do not replace a working installation with a generic wheel. Point the recipe at
-its Python executable and its TabbyAPI source tree:
+Requires Linux, `git`, a CUDA-enabled Python with PyTorch/Triton,
+`nvcc` and C++ compiler. DGX Spark requires an aarch64-compatible
+CUDA/Torch environment, not an x86 wheel.
+
+```bash
+bash exllamav3-tabby/setup.sh
+
+# If needed, point at an existing working GPU Python:
+BASE_PYTHON=/absolute/path/to/cuda-venv/bin/python \
+  bash exllamav3-tabby/setup.sh
+```
+
+Setup resolves both forks' latest default branch, creates a
+separate managed venv, builds ExLlamaV3 and installs TabbyAPI.
+It preserves the selected base PyTorch/Triton build; it does not
+install GPU drivers, modify unrelated checkouts, or start serving.
+
+`MAX_JOBS=4` controls build parallelism. GPU architecture is
+detected automatically, with `TORCH_CUDA_ARCH_LIST` as an override.
+
+## Updates
+
+```bash
+# Install latest code if it changed:
+bash exllamav3-tabby/setup.sh
+
+# Check for changes without an update:
+bash exllamav3-tabby/setup.sh --check
+```
+
+Every new `serve.sh` start also checks for fork changes. An unchanged
+installation is reused. When code changes, a new build is staged;
+failed updates do not overwrite an active installation or silently
+fall back to an old one. Existing server processes stay running
+until their owner stops them.
+
+Do not set `EXLLAMAV3_REF` or `TABBY_REF`; these old pin variables
+are explicitly rejected. Runtime commits in local receipts are
+diagnostic facts, not version constraints.
+
+`RECIPE_HOME` defaults to `~/minicpm47-exl3`. Private runtime
+receipts and API keys are under `STATE_DIR` (default `.state`).
+Separate live services need separate homes and state directories.
+
+## Existing qualified environment
+
+Optional read-only recording of an existing MiniCPM environment:
 
 ```bash
 bash exllamav3-tabby/setup.sh --adopt \
-  --python /path/to/working/venv/bin/python --tabby-src /path/to/tabbyAPI
-bash exllamav3-tabby/setup.sh --check
-bash exllamav3-tabby/download.sh
+  --python /path/to/venv/bin/python \
+  --tabby-src /path/to/tabbyAPI
 ```
 
-Adoption imports the runtime, checks its registered architecture and CUDA
-availability, hashes its source, and records selected dependency versions. It
-never runs pip or modifies the existing checkouts. The private receipt is stored
-under `.state/` (or `STATE_DIR`). The model is not loaded during adoption.
+Normal setup and serve still install latest forks into a managed
+environment; this does not force old versions to stay installed.
 
-## B. Fresh source build (requires the missing MiniCPM commits)
-
-There is deliberately no guessed default ExLlamaV3 pin. Supply exact 40-character
-source commits once the compatible runtime code is public. BASE_PYTHON must
-already have a suitable CUDA-enabled PyTorch; use the hardware vendor's supported
-Torch environment, especially on DGX Spark/aarch64.
+## Model download
 
 ```bash
-BASE_PYTHON=/path/to/cuda-python \
-EXLLAMAV3_REF=<40-character-MiniCPM-enabled-commit> \
-TABBY_REF=<40-character-compatible-TabbyAPI-commit> \
-  bash exllamav3-tabby/setup.sh --build
+bash exllamav3-tabby/download.sh
+bash exllamav3-tabby/download.sh --verify-only
+bash exllamav3-tabby/download.sh --include-drafter
 ```
 
-This creates a separate venv inheriting the existing CUDA Torch, clones source
-into a recipe-owned location, checks for the model architecture before building,
-and installs TabbyAPI without CUDA extras. Torch and existing Triton versions are
-constrained during installation. `pip check` must pass. It does not use
-TabbyAPI's auto-updating start.sh or enable developer.unsafe_launch.
+The separate quant file manifest is integrity-checked against
+the published release. It does not pin inference software.
+Downloading the optional dSparK does not enable acceleration.
 
-`MAX_JOBS=4` limits build parallelism. `TORCH_CUDA_ARCH_LIST` is derived from the
-selected CUDA GPU unless explicitly set (GB10 is 12.1). `nvcc` and a working C++
-compiler are required. The recipe does not install system drivers or repair
-binary wheels. Stop if Torch, CUDA toolkit or compiler compatibility is wrong.
-
-Build configuration may be taken from runtime.lock.json only after qualified
-commits are populated. Source checks are not performance qualification.
-
-## C. Download/verify without a runtime
-
-The downloader itself needs Python and huggingface_hub, not CUDA:
+Download-only without a GPU environment:
 
 ```bash
 python3 -m venv .download-venv
@@ -55,11 +79,3 @@ python3 -m venv .download-venv
 DOWNLOAD_PYTHON="$PWD/.download-venv/bin/python" \
   bash exllamav3-tabby/download.sh
 ```
-
-Only a pinned snapshot is requested. The manifest verifies Git-blob hashes for
-small files and SHA-256 for LFS-backed files. `--verify-only` uses the Python
-standard library and works without huggingface_hub. `--include-drafter` also
-verifies the optional pinned dspark checkpoint. Files in the root `.cache/` are
-Hub bookkeeping and are not model shards.
-
-Downloading the optional drafter is not a recommendation to enable it.

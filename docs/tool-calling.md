@@ -17,4 +17,4 @@ by this recipe.
 Thinking in the SixCat run was enabled at temperature 0.7. The speed benchmark
 was greedy. They are not the same sampling configuration. For smoke requests,
 chat_template_kwargs.enable_thinking=false is sent explicitly; validate the
-actual rendered prompt and reasoning/content split in the adopted server.
+actual rendered prompt and reasoning/content split in the running server.

@@ -63,7 +63,7 @@ def config_from_env(env, model_dir: Path):
     if mode not in ('FP16', 'Q8', 'Q6', 'Q4') and not re.fullmatch(r'[2-8],[2-8]', mode):
         raise ValueError('Unsupported CACHE_MODE')
     if env.get('DRAFT_MODE', 'disabled') != 'disabled':
-        raise ValueError('This recipe deliberately serves target-only; no qualified public dSparK launcher is pinned')
+        raise ValueError('Target-only remains the measured faster default. Optional dedicated dSparK serving requires a separately validated launch configuration')
     return {
         'network': {'host': env.get('HOST', '127.0.0.1'), 'port': port,
                     'disable_auth': False, 'allowed_origins': [],

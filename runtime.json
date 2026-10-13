@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "policy": "latest-default-branches",
+  "repositories": {
+    "exllamav3": "https://github.com/vcruz305/exllamav3.git",
+    "tabbyapi": "https://github.com/vcruz305/tabbyAPI.git"
+  },
+  "update_on": [
+    "setup",
+    "serve_start"
+  ],
+  "fixed_versions": false,
+  "notes": "Resolve remote HEAD at each new installation or server start. Commit IDs are recorded, never used as version pins."
+}

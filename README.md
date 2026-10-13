@@ -1,94 +1,63 @@
-# MiniCPM-V 4.7 35B-A3B SAGE EXL3 on NVIDIA DGX Spark
+# MiniCPM-V 4.7 35B-A3B SAGE EXL3 on NVIDIA GPUs
 
-Run the standalone **3.74 bpw SAGE EXL3** release with a MiniCPM-enabled
-ExLlamaV3 runtime and an OpenAI-compatible TabbyAPI server. The layout follows
-[the Qwen Flash Next recipe](https://github.com/vcruz305/Qwen3.8-Flash-Next-EXL3-DGX-Spark-recipe):
-`exllamav3-tabby/` for deployment, `bench/` for checks, and `docs/` for details.
+Run the **3.74 bpw SAGE EXL3** release through the current
+[ExLlamaV3](https://github.com/vcruz305/exllamav3) and
+[TabbyAPI](https://github.com/vcruz305/tabbyAPI) forks. Native MiniCPM
+text, vision and Qwen3DSparkModel support are now included upstream
+in Victor's ExLlamaV3 fork.
 
-**24 GB GPUs are a deployment target, not a completed discrete-GPU benchmark.**
-The published serving measurements are on one DGX Spark. A compact second model
-on a Spark is another intended use, but co-residency with a larger model has not
-been validated.
+**One DGX Spark:** 69.70 tok/s target-only decode p50 and
+1,024 tok/s prefill p50 on the publisher's test.
+The 19 target weight shards total 17,999,304,996 bytes.
 
-> **Runtime publication gap, checked 2026-10-13:** the model card reports a
-> qualified MiniCPM runtime but does not publish its commit or patch set. The
-> inspected public `vcruz305/exllamav3` branch does not register
-> `MiniCPMV4_7ForConditionalGeneration`. A generic Qwen-only runtime is NOT a
-> substitute. This recipe supports adopting an existing MiniCPM-enabled setup,
-> and building from explicit source commits once available. It deliberately
-> refuses to promise a clean-machine install from an unsupported public pin.
-> See [runtime status](docs/runtime-status.md).
+**Latest-fork policy:** setup and every new server start check the latest
+default branch of both forks. No fixed runtime commit or version pins.
+Resolved commits are saved in private deployment receipts solely for
+troubleshooting and honest benchmark attribution. Running servers are
+never hot-updated.
 
-**Start here:** [quick start](#quick-start-with-an-existing-qualified-runtime),
-[installation](docs/installation.md), [vision](docs/vision.md),
-[benchmarks](bench/README.md), and [validation status](VALIDATION.md).
-Agents should read [AGENTS.md](AGENTS.md) first.
+## Quick start
 
-## Release at a glance
-
-| Item | This release |
-|---|---|
-| Model | MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw |
-| Source | OpenBMB MiniCPM-V 4.7 35B-A3B |
-| Model revision | `855cb7601710064aeb7452b6b7e45e60a40be76b` |
-| Target weights | 19 shards, **17,999,304,996 bytes** (18 GB decimal ceiling) |
-| Bitrate | Publisher target average 3.7357, rounded to 3.74 bpw |
-| Head / vision precision | 8-bit head / 8-bit vision path |
-| Default deployment | One request, 8K text context, target-only decoding |
-| API | `http://127.0.0.1:8898/v1`, authentication enabled |
-| Source architecture limit | 262,144 tokens; not a verified serving window here |
-| Speculation | Off by default; qualified dSparK was slower in the matched test |
-
-The 18 GB ceiling is for the 19 **target weight shards**, not a promise about
-full download size, GPU allocation, or a package including `dspark/`.
-The optional bundled drafter adds 778,452,858 weight bytes. Configs, tokenizer,
-index, and other ancillary files also occupy disk. The download manifest records
-all of them separately.
-
-## Quick start with an existing qualified runtime
-
-Clone this recipe on the machine that will serve the model:
+On Linux with CUDA-enabled PyTorch/Triton, CUDA toolkit and a C++ compiler:
 
 ```bash
 git clone https://github.com/vcruz305/MiniCPM-V-4.7-35B-A3B-EXL3-DGX-Spark-recipe.git
 cd MiniCPM-V-4.7-35B-A3B-EXL3-DGX-Spark-recipe
 
-# These are YOUR existing MiniCPM-enabled Python and TabbyAPI directories.
-# This validates and records them. It does not upgrade or modify either one.
-bash exllamav3-tabby/setup.sh --adopt \
-  --python /absolute/path/to/qualified-venv/bin/python \
-  --tabby-src /absolute/path/to/qualified-tabbyAPI
+# Build latest engine and API fork without touching system drivers.
+bash exllamav3-tabby/setup.sh
 
-# Uses the adopted environment's huggingface_hub; no BF16 source download.
+# Download and verify the EXL3 model release.
 bash exllamav3-tabby/download.sh
 
-# Preview only: no model load, no GPU query, no live config change.
-PROFILE=single DRY_RUN=1 bash exllamav3-tabby/serve.sh
-
-# Foreground server. Refuses busy port/state; never kills another workload.
+# Check fork updates and serve with target-only decoding.
 PROFILE=single bash exllamav3-tabby/serve.sh
 ```
 
-A runtime passing the architecture check is a **candidate**, not an automatic
-reproduction of the publisher's benchmark. Run the checks below on your exact
-installation. Adoption and fresh builds are documented separately so an old
-ExLlamaV3 wheel cannot masquerade as MiniCPM support.
-
-Use an already-downloaded unmodified pack:
+If `python3` does not belong to your existing CUDA environment:
 
 ```bash
-MODEL_DIR="$HOME/models/MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw" \
-  bash exllamav3-tabby/download.sh --verify-only
+BASE_PYTHON=/absolute/path/to/cuda-venv/bin/python bash exllamav3-tabby/setup.sh
 ```
 
-The downloader pins the Hub revision and verifies file sizes and hashes. It
-excludes `dspark/` by default. Add `--include-drafter` only to obtain that
-optional artifact; downloading it does not enable or accelerate drafting.
+Existing Torch/Triton and source checkouts are preserved. New runtime builds
+go into separate managed directories. `setup.sh --check` checks remote
+updates and your existing installation without modifying it.
 
-## API and first request
+Offline configuration preview (no model load or update):
 
-TabbyAPI keeps its inference/admin keys in its own private `api_tokens.yml`.
-Use the **inference** key, not the admin key. In a second terminal:
+```bash
+DRY_RUN=1 PROFILE=single bash exllamav3-tabby/serve.sh
+```
+
+See [installation](docs/installation.md), [runtime updates](docs/runtime-status.md),
+[vision](docs/vision.md), and [validation](VALIDATION.md).
+
+## API
+
+Default: authenticated localhost API at `http://127.0.0.1:8898/v1`.
+Private API keys persist under `$STATE_DIR/api_tokens.yml` across
+runtime rebuilds. Use the **inference** key.
 
 ```bash
 read -rsp 'TabbyAPI inference key: ' TABBY_API_KEY; echo
@@ -101,7 +70,7 @@ curl --fail-with-body http://127.0.0.1:8898/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{
     "model": "MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw",
-    "messages": [{"role": "user", "content": "Explain what a DNS cache does in three sentences."}],
+    "messages": [{"role": "user", "content": "Explain DNS caching in three sentences."}],
     "temperature": 0,
     "max_tokens": 256,
     "chat_template_kwargs": {"enable_thinking": false},
@@ -109,34 +78,55 @@ curl --fail-with-body http://127.0.0.1:8898/v1/chat/completions \
   }'
 ```
 
-Use the actual model ID returned by `/v1/models` if you renamed the local folder.
-The preserved model template controls prompt formatting; no Qwen Flash Next
-or Cyber Frost template override is applied.
+Use the actual model name reported by `/v1/models` if you renamed the
+folder. Preserve the release's tokenizer, stop IDs and chat template.
 
-## Profiles, context and memory
+## Profiles, memory and limits
 
-| Profile | Context / shared KV pool | Active requests | Vision | Status |
-|---|---:|---:|---|---|
-| `single` (default) | 8,192 / 8,192 | 1 | Off | Conservative recipe settings near the reported text test |
-| `vision` | 4,096 / 4,096 | 1 | On | API verification candidate; native color smoke is published |
-| `24gb` | 4,096 / 4,096 | 1 | Off | Discrete 24 GB GPU target, not on-card validated |
-| `companion` | 4,096 / 4,096 | 1 | Off | Co-resident starting point, not validated with a second model |
+| Profile | Request context | Shared KV | Active jobs | Vision |
+|---|---:|---:|---:|---|
+| `single` | 8,192 | 8,192 | 1 | off |
+| `vision` | 4,096 | 4,096 | 1 | on |
+| `24gb` | 4,096 | 4,096 | 1 | off |
+| `companion` | 4,096 | 4,096 | 1 | off |
 
-The defaults use `FP16` KV. The model card does **not** specify all settings of
-its measured runtime, including KV dtype and chunk size, so these profiles are
-not claimed to be exact reproductions of that server. `single` uses a 1,024-token
-prefill chunk; the smaller profiles use 512. Quantized KV and longer windows
-need a fresh accuracy/memory evaluation.
+```bash
+PROFILE=vision bash exllamav3-tabby/serve.sh
+# After setting TABBY_API_KEY on another terminal:
+python3 bench/smoke.py --vision
+```
 
-Overrides: `MODEL_DIR`, `PROFILE`, `PORT`, `HOST`, `CACHE_SIZE`, `MAX_SEQ_LEN`,
-`MAX_BATCH_SIZE`, `CACHE_MODE`, `CHUNK_SIZE`, `VISION`, `CUDA_VISIBLE_DEVICES`,
-`STATE_DIR`, `GPU_LOCK_FILE`. Profile changes do not create additional memory.
-Cache size must be a multiple of 256 and at least the per-request sequence limit.
-The launcher refuses a sequence limit above the source's 262,144-token maximum.
+The 24 GB discrete-GPU and DGX Spark co-resident profiles are
+deployment starting points, not completed fit tests. The source's
+262,144-token configuration is not proof of long-context service.
+Peak CUDA allocation was 20.33 GiB in the publisher's 8K text
+quality configuration, and 18.33 GiB in a separate 4K vision smoke.
 
-A recipe configuration exceeding the small published context tests is labeled
-**unvalidated** in the deployment receipt. Weight fit alone does not validate
-long-context text, vision, or simultaneous models. See [memory planning](docs/memory.md).
+All profiles start with FP16 KV and target-only decoding. The optional
+official dSparK is not faster on the published matched test, so it is
+not enabled by default.
+
+Overrides: `MODEL_DIR`, `PROFILE`, `PORT`, `HOST`, `CACHE_SIZE`,
+`MAX_SEQ_LEN`, `MAX_BATCH_SIZE`, `CACHE_MODE`, `CHUNK_SIZE`,
+`VISION`, `RECIPE_HOME`, `STATE_DIR`, `GPU_LOCK_FILE`.
+
+Separate live installations should use distinct ports, state
+directories and recipe homes. See [memory planning](docs/memory.md)
+and [service operations](docs/service.md).
+
+## Model facts
+
+| Property | Exact release |
+|---|---|
+| Quant | 3.7357 target bpw, rounded 3.74 |
+| Weights | 19 EXL3 shards; 17,999,304,996 bytes |
+| Output head / vision | 8-bit / 8-bit |
+| Packaging | Standalone EXL3; no BF16 checkpoint needed at serve |
+| Optional dSparK | Separate 778,452,858-byte checkpoint |
+
+The weight byte total excludes tokenizer/index/other files and the
+optional drafter. Model-file checksums are for **release identity**,
+not runtime version pinning.
 
 ## Measured results from the model publisher
 
@@ -195,7 +185,7 @@ It is not automatically compatible with an ordinary MTP or DFlash toggle.
 Greedy parity passed 27/27 width/prompt checks, and full response hashes matched
 for the paired speed run. Nevertheless, exact verification was **34.65% slower**.
 Do not substitute the separate 69.70 tok/s row into this matched comparison.
-The recipe keeps drafting disabled and does not fabricate a public dSparK launcher.
+The current ExLlamaV3 fork includes dedicated Qwen3DSparkModel support. Target-only remains the default because the matched dSparK test was slower. The optional drafter is not automatically enabled.
 
 ## Validation and operation
 
@@ -207,18 +197,21 @@ python3 bench/api_benchmark.py --base-url http://127.0.0.1:8898/v1 \
 ```
 
 The new benchmark records real usage and end-to-end wall time, with no fabricated
-prefill/decode decomposition. It is a reproducibility aid, not the unpublished
+prefill/decode decomposition. It is a reproducibility aid, not the original
 harness that produced the model card's exact-token performance table.
 See [bench/README.md](bench/README.md), [vision smoke](docs/vision.md),
 [tool calling](docs/tool-calling.md), and [service operation](docs/service.md).
 
+
 ## Credits and licenses
 
-OpenBMB: MiniCPM-V model and official dSparK. Qwen: language-backbone lineage.
-Turboderp/ExLlamaV3: EXL3 format and engine. The Royal Lab/TabbyAPI: API server.
-Victor Cruz: this SAGE-branded checkpoint, recipe, and published measurements.
+OpenBMB: MiniCPM-V and official dSparK. Qwen: language-backbone
+lineage. Turboderp/ExLlamaV3: EXL3 codec and engine. The Royal
+Lab/TabbyAPI: OpenAI-compatible serving. Victor Cruz: SAGE EXL3
+release, recipe and measurements.
 
-The model card declares Apache-2.0 for the model. The recipe's original scripts
-and docs are MIT; external model/runtime code keeps its own license. No private
-SAGE allocation internals, credentials, model weights, or inference patches are
-redistributed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The model card declares Apache-2.0. Original recipe code and docs
+are MIT; external model and runtime code retains its own license.
+See [third-party notices](THIRD_PARTY_NOTICES.md).
+
+AI agents: read [AGENTS.md](AGENTS.md) before editing.

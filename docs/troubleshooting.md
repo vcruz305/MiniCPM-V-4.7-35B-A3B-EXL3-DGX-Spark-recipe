@@ -1,34 +1,38 @@
 # Troubleshooting
 
-**Unknown MiniCPMV4_7ForConditionalGeneration**: this is the known runtime
-publication gap. Obtain the actual MiniCPM adapter or use its qualified local
-installation. Never rename config.json to Qwen or bypass the registry check.
+**Old or missing MiniCPM support:** verify which Python/runtime is
+actually imported. `setup.sh` resolves the latest fork HEAD. The
+native model and vision support is now merged; do not rename
+the checkpoint to generic Qwen to work around a stale engine.
 
-**No compatible CUDA PyTorch / build failure**: check Python, Torch CUDA, driver,
-nvcc, compiler and detected architecture together. A cp312 x86_64 wheel is not a
-Spark aarch64 wheel. This recipe does not change your driver or system Python.
+**CUDA installation fails:** use a compatible GPU-specific PyTorch,
+Triton, `nvcc` and compiler. On DGX Spark use aarch64 wheels
+where appropriate. This recipe does not touch system drivers.
 
-**Runtime identity changed**: stop the recipe-owned server, inspect what changed,
-then rerun setup --adopt deliberately. Do not edit a live generated config.
+**Remote GitHub unavailable:** rolling updates fail visibly,
+not silently fall back to older code. Existing workloads keep
+their active source version until restarted by their owner.
 
-**Vision disabled**: require a native MiniCPM vision component plus the 8-bit
-vision files and a working TabbyAPI image path. The text backbone alone is not
-the complete model.
+**Auth rejected:** use `$STATE_DIR/api_tokens.yml`'s inference key.
+These private credentials persist across staged runtime updates.
 
-**Slower with the bundled drafter**: expected in the published exact dSparK run.
-Target-only is the recommended default. Do not substitute ordinary MTP/DFlash
-flags for dedicated Qwen3DSparkModel support.
+**Vision requests fail:** use `PROFILE=vision` and verify the
+native vision component was loaded. API image testing and full
+multimodal evaluation are separate.
 
-**Hash mismatch**: confirm the pinned revision and download path. Preserve any
-local changes elsewhere; do not silently mutate a checkpoint. Use a fresh local
-model directory to obtain the pinned snapshot.
+**dSparK slower:** expected in the published matched run.
+Target-only stays the default. Do not treat a downloaded drafter
+as active MTP acceleration.
 
-**OOM**: reduce batch, context, image resolution and prefill chunks. Inspect all
-processes and total unified memory without killing another owner's workload.
-The 24 GB and co-serving profiles are starting points, not universal fit proofs.
+**Hash mismatch:** the quant weight release must be the exact
+named set in model.lock.json. Download a clean copy rather than
+changing config or repacking weights.
 
-**Speed differs from 69.70**: preserve model/runtime IDs, prompt/output token
-counts, thinking, cache, warmups and measurement type. The original runtime pin
-and full benchmark harness are not yet published; this recipe's generic API
-benchmark only measures end-to-end throughput and does not reproduce that exact
-decode figure by construction.
+**OOM:** lower context, batch and chunk size. Check other memory
+users without killing them. Discrete 24 GB and companion-model
+profiles are starting points, not fit guarantees.
+
+**Performance differs from the model card:** compare actual
+prompts/output counts, caching, sampler, hardware, runtime
+commits, cache dtype and benchmark method. Published metrics
+were not remeasured during this recipe update.

@@ -5,7 +5,7 @@ ExLlamaV3 check used two synthetic colors, finite distinct 64x2048 FP16 embeddin
 and correct one-word red/blue answers. It does not establish a complete OCR,
 document, video or multimodal quality score, nor the OpenAI image-input route.
 
-With a MiniCPM-enabled runtime adopted, select the smaller image profile:
+With current MiniCPM source installed, select the smaller image profile:
 
 ```bash
 PROFILE=vision bash exllamav3-tabby/serve.sh

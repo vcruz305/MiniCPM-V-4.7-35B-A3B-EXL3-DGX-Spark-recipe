@@ -1,21 +1,19 @@
 # Validation status
 
-Snapshot date: 2026-10-13. No new GPU workload was executed for this recipe.
+Updated 2026-10-13. No new GPU model load or benchmark
+was performed while changing the recipe.
 
-| Evidence | Status |
+| Item | Status |
 |---|---|
-| HF source, model config and weight manifest read | Verified during recipe preparation |
-| Public checkpoint pinned and per-file integrity metadata captured | Verified |
-| Published two-pass 125,215-tensor equality checks | Publisher-reported, not independently rerun |
-| Held-out/independent fidelity and SixCat | Publisher-reported, exact pack |
-| 69.70 tok/s Spark target-only decode | Publisher-reported |
-| Native image smoke, red/blue | Publisher-reported, 2/2 |
-| Public MiniCPM architecture source/commit | Missing from inspected public branch |
-| Original server dependency freeze / KV dtype / chunk size | Not supplied by model card |
-| This recipe clean install / server load | Not performed |
-| OpenAI image-input path | New smoke helper supplied, not run on GPU |
-| 24 GB discrete GPU / long context / co-resident second model | Not validated |
-| dSparK | Publisher reports exact greedy parity but slower; disabled by default |
+| MiniCPM text architecture registered in fork | Confirmed on current master |
+| MiniCPM vision and image processing in fork | Confirmed |
+| Dedicated Qwen3DSparkModel in fork | Confirmed |
+| Rolling runtime selection | Latest default branches, no version pins |
+| Quant model file manifest | Exact published release hashes |
+| Publisher's fidelity, SixCat, Spark speed | Source-attributed, not rerun here |
+| Clean install, API model load, vision API | Not rerun for these changes |
+| 24 GB GPU and Spark co-resident serving | Not independently validated |
+| 262K live context with this recipe | Not validated |
 
-Generated test results are recorded in docs/recipe-tests.md after local tests.
-They cover helpers and safety/validation logic, not CUDA kernel or model parity.
+CPU helper checks and workflow status are in
+[recipe tests](docs/recipe-tests.md).

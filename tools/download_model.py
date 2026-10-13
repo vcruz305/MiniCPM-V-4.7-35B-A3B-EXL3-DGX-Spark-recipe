@@ -1,4 +1,4 @@
-"""Pinned download; Hugging Face library is imported only when downloading."""
+"""Checksum-verified model release; Hugging Face is imported only when downloading."""
 from pathlib import Path
 import argparse
 import json
@@ -15,7 +15,7 @@ def main():
         try:
             from huggingface_hub import snapshot_download
         except ImportError:
-            raise SystemExit('huggingface_hub is missing. Use the documented isolated download venv or a qualified environment.')
+            raise SystemExit('huggingface_hub is missing. Use the documented isolated download venv or a working CUDA environment.')
         patterns = [f['path'] for f in manifest['files']
                     if args.include_drafter or not f['path'].startswith('dspark/')]
         snapshot_download(repo_id=manifest['repo_id'], revision=manifest['revision'],

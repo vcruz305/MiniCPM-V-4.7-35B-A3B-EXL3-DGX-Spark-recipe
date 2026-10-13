@@ -10,8 +10,6 @@
 - ExLlamaV3/EXL3: Turboderp and contributors. Engine/codec license remains its own.
 - TabbyAPI: The Royal Lab and contributors, AGPL-3.0. Installed separately; this
   repository does not copy or modify its source.
-- Structural reference: Victor's Qwen3.8-Flash-Next-EXL3-DGX-Spark-recipe, MIT.
-  This recipe's scripts are newly written rather than copied inference code.
 
 Original recipe scripts, tests and explanatory docs use the root MIT LICENSE.
 External packages and downloaded artifacts are not relicensed by that file.

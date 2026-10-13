@@ -25,7 +25,7 @@ def identity(path: Path):
         return r.stdout.strip() if r.returncode == 0 else None
     return {'path': str(path), 'source_digest': digest.hexdigest(),
             'git_commit': git('rev-parse', 'HEAD'),
-            'git_dirty': bool(git('status', '--porcelain'))}
+            'git_dirty': bool(git('status', '--porcelain', '--untracked-files=no'))}
 
 def main():
     parser = argparse.ArgumentParser()
