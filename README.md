@@ -18,6 +18,15 @@ For a single 24 GB GPU, see the [RTX 4090 recipe](https://github.com/vcruz305/Mi
 It is faster on short prompts and slower on long ones, so it is opt-in
 (see [dSparK](#dspark-exact-speculative-decoding)).
 
+
+## Model
+
+| | Hugging Face |
+|---|---|
+| Checkpoint served (includes the dSparK drafter under `dspark/`) | [vcruz305/MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw](https://huggingface.co/vcruz305/MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw) |
+| Base model | [openbmb/MiniCPM-V-4.7-35B-A3B](https://huggingface.co/openbmb/MiniCPM-V-4.7-35B-A3B) |
+| Official dSparK drafter | [openbmb/MiniCPM-V-4.7-35B-A3B-DSpark](https://huggingface.co/openbmb/MiniCPM-V-4.7-35B-A3B-DSpark) |
+
 ## Quick start
 
 On Linux with a CUDA-enabled PyTorch/Triton, CUDA toolkit and a C++ compiler:
