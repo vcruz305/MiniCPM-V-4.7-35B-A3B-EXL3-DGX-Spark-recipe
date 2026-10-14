@@ -53,6 +53,20 @@ def bool_value(text: str) -> bool:
     if text.lower() in ('0', 'false', 'no'): return False
     raise ValueError(f'Expected true/false, got {text!r}')
 
+# Sampler fallbacks for requests that leave a value out (force: false, so a value the client sends still
+# wins). These are the model's own recommendation from generation_config.json (temperature 1.0, top_k 20,
+# top_p 0.95). TabbyAPI does not read generation_config, and with no sampling section it falls back to
+# temperature 1.0 with top_k 0 / top_p 1.0: every token is drawn from the full ~248K vocabulary. Agent
+# frameworks such as Hermes send no sampler values, so their subagents then sample from the raw tail and
+# make careless mistakes (wrong sums, malformed JSON) that the same model does not make with these values.
+SAMPLER_DEFAULTS = {'temperature': 1.0, 'top_k': 20, 'top_p': 0.95, 'min_p': 0.0}
+
+def sampling_config():
+    cfg = {'override_preset': None}
+    for name, value in SAMPLER_DEFAULTS.items():
+        cfg[name] = {'override': value, 'force': False}
+    return cfg
+
 def config_from_env(env, model_dir: Path):
     profile = env.get('PROFILE', 'single')
     if profile not in PROFILES: raise ValueError(f'Unknown PROFILE={profile}')
@@ -100,7 +114,7 @@ def config_from_env(env, model_dir: Path):
                   'inline_model_loading': False, 'use_dummy_models': False,
                   'prompt_template': None, 'tool_format': 'auto'},
         'draft_model': draft_cfg,
-        'sampling': {'override_preset': None},
+        'sampling': sampling_config(),
         'logging': {'log_prompt': False, 'log_requests': False,
                     'log_generation_params': False, 'log_chat_completion_requests': False},
         'developer': {'unsafe_launch': False},

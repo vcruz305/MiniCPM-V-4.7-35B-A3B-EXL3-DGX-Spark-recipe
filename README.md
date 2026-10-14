@@ -137,6 +137,11 @@ curl --fail-with-body http://127.0.0.1:8898/v1/chat/completions \
        "chat_template_kwargs": {"enable_thinking": false}}'
 ```
 
+Requests that leave sampler values out (agent frameworks such as Hermes usually do) fall back to the
+model's own recommendation from `generation_config.json`: temperature 1.0, top_k 20, top_p 0.95,
+min_p 0. Values the client sends still win. TabbyAPI does not read `generation_config.json` itself, and
+without these fallbacks it samples from the full vocabulary (top_k 0, top_p 1.0).
+
 ## Model facts
 
 | Property | Value |

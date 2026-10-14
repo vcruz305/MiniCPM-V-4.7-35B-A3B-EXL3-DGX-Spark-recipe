@@ -190,4 +190,16 @@ class DocsTests(unittest.TestCase):
         for f in (ROOT/'exllamav3-tabby').glob('*.sh'):
             t=f.read_text();self.assertNotIn('pkill',t);self.assertNotIn('killall',t)
 
+
+class SamplerDefaults(unittest.TestCase):
+    def test_model_recommended_fallbacks_are_set(self):
+        s = config_from_env({}, Path('/models/mini'))['sampling']
+        self.assertEqual({k: s[k]['override'] for k in ('temperature', 'top_k', 'top_p', 'min_p')},
+                         {'temperature': 1.0, 'top_k': 20, 'top_p': 0.95, 'min_p': 0.0})
+        self.assertTrue(all(s[k]['force'] is False for k in ('temperature', 'top_k', 'top_p', 'min_p')))
+    def test_yaml_renders_nested_overrides(self):
+        import yaml
+        y = yaml.safe_load(dump_yaml(config_from_env({}, Path('/models/mini'))))
+        self.assertEqual(y['sampling']['top_k'], {'override': 20, 'force': False})
+
 if __name__=='__main__':unittest.main()
