@@ -13,6 +13,8 @@ Serve the **3.74 bpw SAGE EXL3** release of MiniCPM-V 4.7 through
 | Needle retrieval at 262K (4 needles) | 4/4 | 4/4 |
 
 dSparK output is byte-identical to target-only greedy decoding in every run above.
+For a single 24 GB GPU, see the [RTX 4090 recipe](https://github.com/vcruz305/MiniCPM-V-4.7-35B-A3B-EXL3-RTX-4090-recipe)
+(88 tok/s decode at the full 262K context).
 It is faster on short prompts and slower on long ones, so it is opt-in
 (see [dSparK](#dspark-exact-speculative-decoding)).
 
