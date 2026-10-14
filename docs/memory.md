@@ -11,10 +11,11 @@ framework allocations, display use, image resolution, batch and kernel support
 can differ. A 24 GB Turing Quadro RTX 6000 is not the 96 GB RTX PRO 6000 Blackwell.
 This recipe makes no Turing support claim.
 
-Start with PROFILE=24gb, one job, 4K and no vision. Run text validation, then
-try the separate vision profile. Increase context, image size and concurrency
-one at a time, recording peak allocations and successful outputs. The source
-config allows 262,144 positions but no such long-context run is supplied here.
+Measured full-context process peaks on one DGX Spark at 262,144 tokens:
+18,773 MiB with Q4 KV and 22,027 MiB with FP16 KV (target-only); 20,519 MiB with
+Q4 KV plus the dSparK drafter. On a 24 GB RTX 4090 the Q4 KV full-context run
+peaked at 19,160 MiB device memory. Vision, larger batches and other KV modes
+change these numbers; measure before co-locating other work.
 
 For a Spark companion, use a distinct API port and state directory. Both models'
 weights, KV/recurrent state, vision buffers, page cache and OS must fit in the same

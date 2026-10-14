@@ -66,7 +66,8 @@ def serve():
         runtime = installation['runtime']
         manifest = read_json(ROOT / 'model.lock.json')
         print('Verifying target files before model load.', flush=True)
-        verified = verify_model(MODEL, manifest)
+        drafter = cfg['draft_model']['draft_mode'] != 'disabled'
+        verified = verify_model(MODEL, manifest, include_drafter=drafter)
         runtime_probe(runtime['python'], runtime['tabbyapi']['path'], MODEL, cfg['model']['vision'])
         run = STATE / ('run-' + time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + '-' + str(os.getpid()))
         run.mkdir(parents=True, exist_ok=False)
@@ -80,11 +81,12 @@ def serve():
                    'qualification': {'new_recipe_gpu_validation': False,
                        'context_above_small_published_tests': cfg['model']['max_seq_len'] > (4096 if cfg['model']['vision'] else 8192),
                        'api_vision_requires_validation': cfg['model']['vision'],
-                       '24gb_or_companion_unvalidated': os.environ.get('PROFILE') in ('24gb', 'companion')},
+                       '24gb_or_companion_unvalidated': os.environ.get('PROFILE') in ('companion',)},
                    'scope': 'new local deployment; published benchmark results remain separate'}
         atomic_json(run / 'deployment.json', receipt)
         keys = stable_keys(Path(runtime['tabbyapi']['path']), STATE)
-        print(f'Launching target-only at {net["host"]}:{net["port"]}. Private API keys: {keys}', flush=True)
+        mode = 'dSparK width %d' % cfg['draft_model']['draft_num_tokens'] if drafter else 'target-only'
+        print(f'Launching {mode} at {net["host"]}:{net["port"]}. Private API keys: {keys}', flush=True)
         child = subprocess.Popen([runtime['python'], 'main.py', '--config', str(config_path)], cwd=runtime['tabbyapi']['path'])
         previous = signal.getsignal(signal.SIGTERM)
         signal.signal(signal.SIGTERM, lambda *_: child.terminate() if child.poll() is None else None)

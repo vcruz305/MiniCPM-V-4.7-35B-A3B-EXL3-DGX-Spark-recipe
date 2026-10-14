@@ -14,14 +14,15 @@ and docs/runtime-status.md before editing.
   M-RoPE, tokenizer, original template, and EOS metadata.
 - The weight manifest identifies this EXL3 *model release*, not
   an inference-runtime software version.
-- Keep target-only decoding as the throughput default; matched dSparK
-  was slower despite parity.
+- Keep target-only decoding as the default. dSparK is opt-in
+  (`DRAFT_MODE=dspark`), exact, faster only for short prompts and capped at
+  `MAX_SEQ_LEN <= 8192`; its acceptance collapses with long prompts.
 - Never invent GPU benchmarks. Distinguish published model-card data
   from helper tests and downstream OpenBMB baseline results.
 - Do not kill existing services, hot-upgrade workloads, modify existing
   code checkouts, expose credentials or auto-rent hardware.
-- 24 GB discrete GPU fit, secondary-model co-residency and full 262K
-  context remain unverified on this new deployment procedure.
+- Full 262K context was measured with Q4/FP16 KV on Spark and Q4/Q8 KV on an
+  RTX 4090 (see bench/measured-results.json). Co-residency is unverified.
 - CI is CPU-only: it checks helper behavior, not native CUDA inference.
 
 ## Tests

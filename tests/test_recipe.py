@@ -35,6 +35,19 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.cfg(CACHE_SIZE='4096')
     def test_no_fake_mtp(self):
         with self.assertRaises(ValueError): self.cfg(DRAFT_MODE='mtp')
+    def test_long_profile_full_context_q4(self):
+        c=self.cfg(PROFILE='long')['model'];self.assertEqual(c['max_seq_len'],262144);self.assertEqual(c['cache_mode'],'Q4')
+    def test_dspark_config(self):
+        d=self.cfg(DRAFT_MODE='dspark')['draft_model']
+        self.assertEqual(d['draft_mode'],'model');self.assertEqual(d['draft_model_name'],'dspark')
+        self.assertEqual(d['draft_model_dir'],str(Path('/models/mini')));self.assertEqual(d['draft_num_tokens'],7)
+        self.assertFalse(d['dynamic_draft'])
+    def test_dspark_refuses_long_context(self):
+        with self.assertRaises(ValueError): self.cfg(PROFILE='long',DRAFT_MODE='dspark')
+    def test_dspark_refuses_vision(self):
+        with self.assertRaises(ValueError): self.cfg(PROFILE='vision',DRAFT_MODE='dspark')
+    def test_dspark_width_cap(self):
+        with self.assertRaises(ValueError): self.cfg(DRAFT_MODE='dspark',DRAFT_TOKENS='8')
     def test_invalid_bool(self):
         with self.assertRaises(ValueError): self.cfg(VISION='perhaps')
     def test_invalid_cache(self):
@@ -99,6 +112,15 @@ class IntegrityTests(unittest.TestCase):
     def test_matching_dspark_pair(self):
         r=read_json(ROOT/'bench/published-results.json')['dspark_matched']
         self.assertEqual(r['target_only_decode_p50'],69.33);self.assertEqual(r['draft_decode_p50'],45.31)
+    def test_measured_results(self):
+        r=read_json(ROOT/'bench/measured-results.json')
+        self.assertEqual(r['provenance'],'recipe_author_gpu_runs')
+        s=r['short_context'];self.assertEqual(s['target_only']['decode_p50'],69.48);self.assertEqual(s['dspark_w7']['decode_p50'],94.70)
+        self.assertTrue(s['responses_identical'])
+        self.assertEqual(r['full_context']['rows']['Q4_target_only']['decode_median'],45.03)
+    def test_readme_numbers_match_measured(self):
+        t=(ROOT/'README.md').read_text()
+        for n in ('69.48','94.70','45.03','1,056','93.43%'): self.assertIn(n,t)
 
 class PackVerificationTests(unittest.TestCase):
     def make_pack(self, root):

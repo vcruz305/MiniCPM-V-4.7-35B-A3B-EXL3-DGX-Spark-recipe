@@ -1,217 +1,160 @@
-# MiniCPM-V 4.7 35B-A3B SAGE EXL3 on NVIDIA GPUs
+# MiniCPM-V 4.7 35B-A3B SAGE EXL3 on one DGX Spark
 
-Run the **3.74 bpw SAGE EXL3** release through the current
+Serve the **3.74 bpw SAGE EXL3** release of MiniCPM-V 4.7 through
 [ExLlamaV3](https://github.com/vcruz305/exllamav3) and
-[TabbyAPI](https://github.com/vcruz305/tabbyAPI) forks. Native MiniCPM
-text, vision and Qwen3DSparkModel support are now included upstream
-in Victor's ExLlamaV3 fork.
+[TabbyAPI](https://github.com/vcruz305/tabbyAPI), at up to the full
+**262,144-token** context, with optional **exact dSparK** speculative decoding.
 
-**One DGX Spark:** 69.70 tok/s target-only decode p50 and
-1,024 tok/s prefill p50 on the publisher's test.
-The 19 target weight shards total 17,999,304,996 bytes.
+| One DGX Spark, measured 2026-10-13 | Target-only | dSparK width 7 |
+|---|---:|---:|
+| Decode, 1,024-token prompts | 69.48 tok/s | **94.70 tok/s** (1.36x) |
+| Decode at 262,144 tokens, Q4 KV | **45.03 tok/s** | 24.45 tok/s |
+| Prefill, cold 261,886 tokens, Q4 KV | 1,056 tok/s | — |
+| Needle retrieval at 262K (4 needles) | 4/4 | 4/4 |
 
-**Latest-fork policy:** setup and every new server start check the latest
-default branch of both forks. No fixed runtime commit or version pins.
-Resolved commits are saved in private deployment receipts solely for
-troubleshooting and honest benchmark attribution. Running servers are
-never hot-updated.
+dSparK output is byte-identical to target-only greedy decoding in every run above.
+It is faster on short prompts and slower on long ones, so it is opt-in
+(see [dSparK](#dspark-exact-speculative-decoding)).
 
 ## Quick start
 
-On Linux with CUDA-enabled PyTorch/Triton, CUDA toolkit and a C++ compiler:
+On Linux with a CUDA-enabled PyTorch/Triton, CUDA toolkit and a C++ compiler:
 
 ```bash
 git clone https://github.com/vcruz305/MiniCPM-V-4.7-35B-A3B-EXL3-DGX-Spark-recipe.git
 cd MiniCPM-V-4.7-35B-A3B-EXL3-DGX-Spark-recipe
 
-# Build latest engine and API fork without touching system drivers.
-bash exllamav3-tabby/setup.sh
+bash exllamav3-tabby/setup.sh                       # build the latest forks
+bash exllamav3-tabby/download.sh --include-drafter  # model + optional dSparK
 
-# Download and verify the EXL3 model release.
-bash exllamav3-tabby/download.sh
+# Full 262,144-token context (Q4 KV, target-only)
+PROFILE=long bash exllamav3-tabby/serve.sh
 
-# Check fork updates and serve with target-only decoding.
-PROFILE=single bash exllamav3-tabby/serve.sh
+# Or: 8K chat with exact dSparK speculative decoding
+PROFILE=single DRAFT_MODE=dspark bash exllamav3-tabby/serve.sh
 ```
 
-If `python3` does not belong to your existing CUDA environment:
+If `python3` is not your CUDA environment:
+`BASE_PYTHON=/path/to/cuda-venv/bin/python bash exllamav3-tabby/setup.sh`.
+Preview the generated server config without loading anything:
+`DRY_RUN=1 PROFILE=long bash exllamav3-tabby/serve.sh`.
 
-```bash
-BASE_PYTHON=/absolute/path/to/cuda-venv/bin/python bash exllamav3-tabby/setup.sh
-```
+## Profiles
 
-Existing Torch/Triton and source checkouts are preserved. New runtime builds
-go into separate managed directories. `setup.sh --check` checks remote
-updates and your existing installation without modifying it.
+| Profile | Context | KV cache | Vision | Use |
+|---|---:|---|---|---|
+| `long` | 262,144 | Q4 | off | Full context, long documents |
+| `single` | 8,192 | FP16 | off | Chat; supports `DRAFT_MODE=dspark` |
+| `vision` | 4,096 | FP16 | on | Images |
+| `24gb` | 4,096 | FP16 | off | Conservative small-memory start |
+| `companion` | 4,096 | FP16 | off | Co-resident with another model |
 
-Offline configuration preview (no model load or update):
+Overrides: `MODEL_DIR`, `PROFILE`, `PORT`, `HOST`, `MAX_SEQ_LEN`, `CACHE_SIZE`,
+`CACHE_MODE` (`FP16`/`Q8`/`Q6`/`Q4`), `CHUNK_SIZE`, `MAX_BATCH_SIZE`, `VISION`,
+`DRAFT_MODE` (`disabled`/`dspark`), `DRAFT_TOKENS` (1–7), `RECIPE_HOME`,
+`STATE_DIR`, `GPU_LOCK_FILE`.
 
-```bash
-DRY_RUN=1 PROFILE=single bash exllamav3-tabby/serve.sh
-```
+**Why Q4 KV at full context:** at 262,144 tokens Q4 KV decodes at 45.03 tok/s
+vs 27.26 tok/s for FP16 KV, uses less memory (18.3 vs 21.5 GiB process peak),
+and still found 4/4 needles.
 
-See [installation](docs/installation.md), [runtime updates](docs/runtime-status.md),
-[vision](docs/vision.md), and [validation](VALIDATION.md).
+## Full-context results (one DGX Spark)
+
+One cold 261,886-token request with four passcodes at 10/35/60/90% depth, then three
+decode samples that fill the context exactly (261,888 prompt + 256 generated = 262,144).
+
+| KV | Mode | Prefill | TTFT | Needles | Decode median |
+|---|---|---:|---:|---:|---:|
+| Q4 | target-only | 1,056 tok/s | 248.8 s | 4/4 | **45.03 tok/s** |
+| Q4 | dSparK w7 | 1,058 tok/s | 249.8 s | 4/4 | 24.45 tok/s |
+| FP16 | target-only | 1,073 tok/s | 245.0 s | 4/4 | 27.26 tok/s |
+| FP16 | dSparK w7 | 1,061 tok/s | 247.7 s | 4/4 | 17.23 tok/s |
+
+Decode samples were byte-identical between target-only and dSparK for each KV mode.
+
+## dSparK: exact speculative decoding
+
+The release ships OpenBMB's official dSparK drafter (`Qwen3DSparkModel`, 5 layers,
+778 MB) under `dspark/`. With `DRAFT_MODE=dspark` the recipe verifies up to 7 drafted
+tokens per target pass. The ExLlamaV3 fork's kernels are row-invariant, so a multi-token
+verify pass gives exactly the same logits as one-token decoding: **output is identical
+to target-only greedy decoding**, only faster when drafts are accepted.
+
+Short prompts, TabbyAPI, 1,024-token prompts, 256 tokens out, greedy, 2 warmups + 7 runs,
+FP16 KV, 8K context:
+
+| | Target-only | dSparK width 7 |
+|---|---:|---:|
+| Decode p50 | 69.48 tok/s | **94.70 tok/s** |
+| Prefill p50 | 742 tok/s | 737 tok/s |
+| TTFT p50 | 0.948 s | 1.012 s |
+| Accepted / proposed | — | 1,125 / 1,966 (57%) |
+| Responses identical | | yes |
+
+Acceptance falls as the prompt grows (Q4 KV, 131K context, 256-token essay answers):
+
+| Prompt tokens | Target-only | dSparK w7 |
+|---:|---:|---:|
+| 2,040 | 60.3 | **64.5** |
+| 8,183 | **60.2** | 55.3 |
+| 16,376 | **59.4** | 45.8 |
+| 32,758 | **57.5** | 40.6 |
+| 129,992 | **54.9** | 34.8 |
+
+So the recipe allows dSparK only with `MAX_SEQ_LEN <= 8192`, text-only, batch 1.
+Use it for chat and short prompts; use `PROFILE=long` without a drafter for documents.
+
+## Quality
+
+Re-scored on the serving runtime used above against the model card's BF16 final-logit
+references (20,480 pooled positions): **93.43% top-1 agreement, 0.0315 mean KL**
+(model card: 93.39%, 0.0316). SixCat v0.7.0 on the card (79.17) was measured on an
+earlier runtime and was not rerun.
 
 ## API
 
-Default: authenticated localhost API at `http://127.0.0.1:8898/v1`.
-Private API keys persist under `$STATE_DIR/api_tokens.yml` across
-runtime rebuilds. Use the **inference** key.
+Authenticated localhost API at `http://127.0.0.1:8898/v1`. Keys persist under
+`$STATE_DIR/api_tokens.yml`; use the **inference** key.
 
 ```bash
-read -rsp 'TabbyAPI inference key: ' TABBY_API_KEY; echo
-export TABBY_API_KEY
-curl --fail-with-body http://127.0.0.1:8898/v1/models \
-  -H "Authorization: Bearer $TABBY_API_KEY"
-
+read -rsp 'TabbyAPI inference key: ' TABBY_API_KEY; echo; export TABBY_API_KEY
 curl --fail-with-body http://127.0.0.1:8898/v1/chat/completions \
-  -H "Authorization: Bearer $TABBY_API_KEY" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "model": "MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw",
-    "messages": [{"role": "user", "content": "Explain DNS caching in three sentences."}],
-    "temperature": 0,
-    "max_tokens": 256,
-    "chat_template_kwargs": {"enable_thinking": false},
-    "stream": false
-  }'
+  -H "Authorization: Bearer $TABBY_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"model": "MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw",
+       "messages": [{"role": "user", "content": "Explain DNS caching in three sentences."}],
+       "temperature": 0, "max_tokens": 256,
+       "chat_template_kwargs": {"enable_thinking": false}}'
 ```
-
-Use the actual model name reported by `/v1/models` if you renamed the
-folder. Preserve the release's tokenizer, stop IDs and chat template.
-
-## Profiles, memory and limits
-
-| Profile | Request context | Shared KV | Active jobs | Vision |
-|---|---:|---:|---:|---|
-| `single` | 8,192 | 8,192 | 1 | off |
-| `vision` | 4,096 | 4,096 | 1 | on |
-| `24gb` | 4,096 | 4,096 | 1 | off |
-| `companion` | 4,096 | 4,096 | 1 | off |
-
-```bash
-PROFILE=vision bash exllamav3-tabby/serve.sh
-# After setting TABBY_API_KEY on another terminal:
-python3 bench/smoke.py --vision
-```
-
-The 24 GB discrete-GPU and DGX Spark co-resident profiles are
-deployment starting points, not completed fit tests. The source's
-262,144-token configuration is not proof of long-context service.
-Peak CUDA allocation was 20.33 GiB in the publisher's 8K text
-quality configuration, and 18.33 GiB in a separate 4K vision smoke.
-
-All profiles start with FP16 KV and target-only decoding. The optional
-official dSparK is not faster on the published matched test, so it is
-not enabled by default.
-
-Overrides: `MODEL_DIR`, `PROFILE`, `PORT`, `HOST`, `CACHE_SIZE`,
-`MAX_SEQ_LEN`, `MAX_BATCH_SIZE`, `CACHE_MODE`, `CHUNK_SIZE`,
-`VISION`, `RECIPE_HOME`, `STATE_DIR`, `GPU_LOCK_FILE`.
-
-Separate live installations should use distinct ports, state
-directories and recipe homes. See [memory planning](docs/memory.md)
-and [service operations](docs/service.md).
 
 ## Model facts
 
-| Property | Exact release |
+| Property | Value |
 |---|---|
-| Quant | 3.7357 target bpw, rounded 3.74 |
-| Weights | 19 EXL3 shards; 17,999,304,996 bytes |
+| Quant | SAGE EXL3, 3.7357 bpw target (3.74) |
+| Weights | 19 shards, 17,999,304,996 bytes |
 | Output head / vision | 8-bit / 8-bit |
-| Packaging | Standalone EXL3; no BF16 checkpoint needed at serve |
-| Optional dSparK | Separate 778,452,858-byte checkpoint |
+| dSparK drafter | 778,452,858 bytes, optional |
 
-The weight byte total excludes tokenizer/index/other files and the
-optional drafter. Model-file checksums are for **release identity**,
-not runtime version pinning.
+## How these numbers were measured
 
-## Measured results from the model publisher
+TabbyAPI over HTTP, streamed, server-reported `usage` timings, one request at a time,
+thinking disabled. Raw results: [`bench/measured-results.json`](bench/measured-results.json).
+Engine: ExLlamaV3 fork `master` at `dc778646` (short context, full-context target-only)
+and `475461e9` (dSparK with quantized KV, depth sweep). `475461e9` fixes a crash when
+dSparK is combined with Q4/Q6/Q8 KV. Setup always installs the latest fork, so use a
+build at or after `475461e9`.
 
-These values are transcribed from the pinned [model card](https://huggingface.co/vcruz305/MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw/blob/855cb7601710064aeb7452b6b7e45e60a40be76b/README.md).
-They were **not rerun while creating this recipe**. A source snapshot and structured
-results are in [`evidence/`](evidence/README.md).
-
-### Exact shipping-pack fidelity
-
-| Set | Top-1 agreement | Mean KL, nats |
-|---|---:|---:|
-| Held-out | 93.642578125% | 0.031476575675059786 |
-| Independent | 93.134765625% | 0.03168882649150257 |
-| Equal-token pooled | 93.388671875% | 0.03158270108328118 |
-
-20,480 pooled token positions, against immutable BF16-reference final-logit
-stores. The publisher reports two runs on the exact 19-shard pack. Top-1 measures
-matching the reference's most-likely next token, not task accuracy. KL compares
-full next-token distributions; lower is closer. The raw logit stores and
-individual quality receipts are not included in this repository.
-
-### Target-only text serving on one DGX Spark
-
-| Metric | Published result |
-|---|---:|
-| Decode p50 | **69.70 tok/s** |
-| Prefill p50 | **1,024.00 tok/s** |
-| TTFT p50 | **1.103 s** |
-| Aggregate output, concurrency 1 | **53.57 tok/s end-to-end** |
-
-1,024 uncached prompt tokens, 256 generated tokens, greedy sampling, two warmups,
-seven measured requests. Peak CUDA allocation was **20.33 GiB** in the 8K text
-quality configuration and **18.33 GiB** in a separate 4K text-plus-vision smoke.
-Those allocation rows are not identical to the throughput workload.
-
-### SixCat v0.7.0
-
-**79.17 overall, 95/120 correct**, 20 first-scored responses per category.
-Knowledge / Math / Truth / Instruct / Code / Tools: **50 / 100 / 80 / 70 / 85 / 90**.
-Custom temperature 0.7, seed 1, thinking on, concurrency 4, guarded code execution.
-All 120 items scored, no truncations or low-confidence parses; two instruction
-items were loop failures. This is not a multimodal benchmark suite.
-
-## Why target-only is the default
-
-The official bundled dSparK is a **separate `Qwen3DSparkModel` checkpoint**.
-It is not automatically compatible with an ordinary MTP or DFlash toggle.
-
-| Matched publisher run | Target-only | dSparK width 4 |
-|---|---:|---:|
-| Decode p50 | 69.33 tok/s | 45.31 tok/s |
-| Prefill p50 | 764.18 tok/s | 752.94 tok/s |
-| TTFT p50 | 0.963 s | 1.035 s |
-| Accepted / proposed | N/A | 988 / 1,438 (68.71%) |
-
-Greedy parity passed 27/27 width/prompt checks, and full response hashes matched
-for the paired speed run. Nevertheless, exact verification was **34.65% slower**.
-Do not substitute the separate 69.70 tok/s row into this matched comparison.
-The current ExLlamaV3 fork includes dedicated Qwen3DSparkModel support. Target-only remains the default because the matched dSparK test was slower. The optional drafter is not automatically enabled.
-
-## Validation and operation
-
-```bash
-bash exllamav3-tabby/setup.sh --check
-python3 bench/smoke.py --base-url http://127.0.0.1:8898/v1
-python3 bench/api_benchmark.py --base-url http://127.0.0.1:8898/v1 \
-  --warmups 2 --samples 7 --concurrency 1 --max-tokens 256
-```
-
-The new benchmark records real usage and end-to-end wall time, with no fabricated
-prefill/decode decomposition. It is a reproducibility aid, not the original
-harness that produced the model card's exact-token performance table.
-See [bench/README.md](bench/README.md), [vision smoke](docs/vision.md),
-[tool calling](docs/tool-calling.md), and [service operation](docs/service.md).
-
+Validation details: [VALIDATION.md](VALIDATION.md). Older card transcription:
+[`bench/published-results.json`](bench/published-results.json).
 
 ## Credits and licenses
 
-OpenBMB: MiniCPM-V and official dSparK. Qwen: language-backbone
-lineage. Turboderp/ExLlamaV3: EXL3 codec and engine. The Royal
-Lab/TabbyAPI: OpenAI-compatible serving. Victor Cruz: SAGE EXL3
-release, recipe and measurements.
+OpenBMB: MiniCPM-V 4.7 and the official dSparK drafter. turboderp: ExLlamaV3.
+The Royal Lab: TabbyAPI. [r0b0tlab](https://github.com/r0b0tlab): MiniCPM-V 4.7
+dSparK conversion improvements merged into the fork. Victor Cruz: SAGE EXL3 release,
+exact one-pass dSparK verification, recipe and measurements.
 
-The model card declares Apache-2.0. Original recipe code and docs
-are MIT; external model and runtime code retains its own license.
-See [third-party notices](THIRD_PARTY_NOTICES.md).
+Recipe code and docs: MIT. Model and runtimes keep their own licenses; see
+[third-party notices](THIRD_PARTY_NOTICES.md).
 
 AI agents: read [AGENTS.md](AGENTS.md) before editing.

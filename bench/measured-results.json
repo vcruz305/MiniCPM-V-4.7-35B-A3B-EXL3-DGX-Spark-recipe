@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "provenance": "recipe_author_gpu_runs",
+  "date": "2026-10-13",
+  "engine": "TabbyAPI (vcruz305/tabbyAPI) + ExLlamaV3 (vcruz305/exllamav3 master)",
+  "exllamav3_commits": {
+    "short_context": "dc77864640a90768c1de227752294288b71bdf70",
+    "full_context_target_only": "dc77864640a90768c1de227752294288b71bdf70",
+    "full_context_dspark_q4_and_depth_sweep": "475461e9a1a288e7c10eb472056239d3fb78b625"
+  },
+  "hardware": "one NVIDIA DGX Spark (GB10, 128 GB unified memory)",
+  "fidelity_rescored": {
+    "commit": "dc77864640a90768c1de227752294288b71bdf70",
+    "pooled_tokens": 20480,
+    "top1": 0.9343,
+    "mean_kl_nats": 0.03146,
+    "reference": "same BF16 final-logit stores as the model card"
+  },
+  "short_context": {
+    "prompt_tokens": 1024,
+    "completion_tokens": 256,
+    "warmups": 2,
+    "samples": 7,
+    "sampling": "greedy",
+    "kv": "FP16",
+    "max_seq_len": 8192,
+    "concurrency": 1,
+    "target_only": {
+      "decode_p50": 69.48,
+      "prefill_p50": 742.03,
+      "ttft_p50_s": 0.948
+    },
+    "dspark_w7": {
+      "decode_p50": 94.7,
+      "prefill_p50": 736.69,
+      "ttft_p50_s": 1.012,
+      "accepted": 1125,
+      "proposed": 1966
+    },
+    "speedup_x": 1.363,
+    "responses_identical": true
+  },
+  "full_context": {
+    "max_seq_len": 262144,
+    "cache_size": 262400,
+    "chunk_size": 2048,
+    "retrieval_prompt_tokens": 261886,
+    "needles": 4,
+    "decode_prompt_tokens": 261888,
+    "decode_completion_tokens": 256,
+    "decode_samples": 3,
+    "rows": {
+      "FP16_target_only": {
+        "prefill_tps": 1072.78,
+        "ttft_s": 245.0,
+        "needles_found": 4,
+        "decode_median": 27.26,
+        "decode_min": 27.23,
+        "decode_max": 27.31,
+        "process_peak_mib": 22027
+      },
+      "Q4_target_only": {
+        "prefill_tps": 1056.03,
+        "ttft_s": 248.8,
+        "needles_found": 4,
+        "decode_median": 45.03,
+        "decode_min": 45.01,
+        "decode_max": 45.18,
+        "process_peak_mib": 18773
+      },
+      "FP16_dspark_w7": {
+        "prefill_tps": 1061.08,
+        "ttft_s": 247.7,
+        "needles_found": 4,
+        "decode_median": 17.23
+      },
+      "Q4_dspark_w7": {
+        "prefill_tps": 1057.61,
+        "ttft_s": 249.8,
+        "needles_found": 4,
+        "decode_median": 24.45
+      }
+    },
+    "outputs_identical_target_vs_dspark": true
+  },
+  "depth_sweep_q4": {
+    "max_seq_len": 131072,
+    "completion_tokens": 256,
+    "prompt": "synthetic document + passcode + 400-word essay request",
+    "rows": [
+      [
+        2040,
+        60.34,
+        64.47
+      ],
+      [
+        8183,
+        60.23,
+        55.32
+      ],
+      [
+        12280,
+        59.44,
+        48.98
+      ],
+      [
+        16376,
+        59.38,
+        45.82
+      ],
+      [
+        24568,
+        58.52,
+        41.22
+      ],
+      [
+        32758,
+        57.47,
+        40.57
+      ],
+      [
+        65528,
+        54.26,
+        37.14
+      ],
+      [
+        129992,
+        54.92,
+        34.84
+      ]
+    ],
+    "columns": [
+      "prompt_tokens",
+      "target_only_decode",
+      "dspark_w7_decode"
+    ],
+    "all_outputs_identical": true
+  }
+}

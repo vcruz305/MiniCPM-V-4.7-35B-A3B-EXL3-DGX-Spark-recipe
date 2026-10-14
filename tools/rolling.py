@@ -82,9 +82,13 @@ from pathlib import Path
 assert torch.cuda.is_available(), 'A working CUDA PyTorch environment is required'
 try: triton_version = m.version('triton')
 except m.PackageNotFoundError: raise RuntimeError('Install compatible Triton in the base CUDA environment first')
+# pip resolves against the distribution metadata version (e.g. 2.14.1), which can lack the
+# local '+cu130' suffix that torch.__version__ reports; constrain on what pip actually sees
+try: torch_dist_version = m.version('torch')
+except m.PackageNotFoundError: torch_dist_version = torch.__version__
 site_paths=sorted(set(str(Path(mod.__file__).resolve().parents[1]) for mod in (torch,triton)))
 print('BASE_JSON='+json.dumps({'python':sys.executable,'python_version':sys.version.split()[0],
-    'torch':torch.__version__,'triton':triton_version,'cuda':torch.version.cuda,
+    'torch':torch_dist_version,'torch_runtime':torch.__version__,'triton':triton_version,'cuda':torch.version.cuda,
     'cuda_site_packages':site_paths,
     'arch':'%d.%d'%torch.cuda.get_device_capability(0)}))'''
     text = output([str(python), '-c', program])
@@ -169,6 +173,25 @@ def expose_base_cuda_packages(venv_python: str, base: dict):
     output([venv_python, '-c', 'import torch,triton; assert torch.cuda.is_available()'])
 
 
+
+def pip_check_lines(py, env):
+    r = subprocess.run([py, '-m', 'pip', 'check'], env=env, capture_output=True, text=True)
+    if r.returncode == 0: return []
+    lines = [l.strip() for l in r.stdout.splitlines() if l.strip() and not l.startswith('No broken requirements')]
+    if not lines: raise RuntimeError('pip check failed without reporting a requirement: ' + r.stderr.strip())
+    return lines
+
+
+def default_build_jobs():
+    """Parallel nvcc jobs: one per core, capped so each job has ~3 GiB of available memory."""
+    cores = os.cpu_count() or 4
+    try:
+        avail_kib = next(int(l.split()[1]) for l in open('/proc/meminfo') if l.startswith('MemAvailable:'))
+        by_mem = max(1, avail_kib // (3 * 1024 * 1024))
+    except (OSError, StopIteration, ValueError):
+        by_mem = 4
+    return max(1, min(cores, by_mem, 32))
+
 def build_candidate(home, sources, base_python, base, key):
     destination = home / 'builds' / (time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + '-' + uuid.uuid4().hex[:8])
     destination.mkdir(parents=True, exist_ok=False)
@@ -189,12 +212,35 @@ def build_candidate(home, sources, base_python, base, key):
     constraints = destination / 'local-cuda-constraints.txt'
     constraints.write_text(f'torch=={base["torch"]}\ntriton=={base["triton"]}\n')
     env = os.environ.copy()
-    env.setdefault('MAX_JOBS', '4')
+    env.setdefault('MAX_JOBS', str(default_build_jobs()))
     env['TORCH_CUDA_ARCH_LIST'] = base['build_arch']
     subprocess.run([py, '-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools', 'wheel', 'ninja', 'packaging'], check=True, env=env)
+    # PyTorch builds extensions in parallel only when a `ninja` executable is on PATH; otherwise it
+    # silently falls back to a serial distutils build (~214 CUDA/C++ files one at a time, 30-45 min).
+    # pip may satisfy `ninja` from the base environment, whose bin/ is not on PATH, so put both the
+    # new venv's bin/ and the ninja package's own BIN_DIR first, and refuse to build without it.
+    # Candidate dirs: the new venv's bin/, the ninja package's BIN_DIR (empty in some releases), and
+    # the bin/ of whichever environment actually provides the ninja package (often the base CUDA venv)
+    probe = ('import ninja, os, sys; d = getattr(ninja, "BIN_DIR", "") or ""; '
+             'site = os.path.dirname(os.path.dirname(ninja.__file__)); '
+             'print("\\n".join(x for x in (d, os.path.join(site, "..", "..", "..", "bin")) if x))')
+    extra = [os.path.realpath(x) for x in output([py, '-c', probe]).splitlines() if x.strip()]
+    env['PATH'] = os.pathsep.join([str(venv / 'bin')] + extra + [env.get('PATH', '')])
+    found = shutil.which('ninja', path=env['PATH'])
+    if not found or subprocess.run([found, '--version'], capture_output=True).returncode != 0:
+        raise RuntimeError('ninja is not runnable from the build PATH; refusing a serial extension build')
+    print(f"Parallel extension build: ninja at {found}, MAX_JOBS={env['MAX_JOBS']}", flush=True)
+    # Problems already present in the user's base CUDA environment are reported, not fatal;
+    # only dependency conflicts introduced by this install fail the build.
+    pre_existing = pip_check_lines(py, env)
     subprocess.run([py, '-m', 'pip', 'install', '--upgrade', '--no-build-isolation', '--no-cache-dir',
                     '-c', str(constraints), '-e', str(destination / 'exllamav3'), str(destination / 'tabbyapi')], check=True, env=env)
-    subprocess.run([py, '-m', 'pip', 'check'], check=True, env=env)
+    introduced = sorted(set(pip_check_lines(py, env)) - set(pre_existing))
+    if pre_existing:
+        print('Pre-existing base-environment pip check findings (not caused by this install):', flush=True)
+        for line in pre_existing: print('  ' + line, flush=True)
+    if introduced:
+        raise RuntimeError('pip check found conflicts introduced by this install:\n' + '\n'.join(introduced))
     runtime = runtime_probe(py, destination / 'tabbyapi')
     if runtime['packages']['torch'] != base['torch'] or runtime['packages']['triton'] != base['triton']:
         raise RuntimeError('The base CUDA package versions changed during installation')

@@ -20,9 +20,18 @@ These private credentials persist across staged runtime updates.
 native vision component was loaded. API image testing and full
 multimodal evaluation are separate.
 
-**dSparK slower:** expected in the published matched run.
-Target-only stays the default. Do not treat a downloaded drafter
-as active MTP acceleration.
+**dSparK slower:** expected on long prompts. Its draft acceptance
+collapses as the prompt grows, so it only helps short chat prompts;
+on one DGX Spark it is 1.36x faster at 1K prompts and slower from 8K. The recipe blocks `DRAFT_MODE=dspark` above 8,192
+tokens of context. Output is identical either way.
+
+**dSparK crashes with Q4/Q6/Q8 KV:** your ExLlamaV3 build predates
+fork commit `475461e9`. Rerun `setup.sh` to pick up the latest fork.
+
+**Setup takes 30+ minutes:** the CUDA extension is being compiled
+serially. Current setup refuses to build without a runnable `ninja`
+and prints `Parallel extension build: ninja at ..., MAX_JOBS=N`;
+expect a few minutes on a Spark.
 
 **Hash mismatch:** the quant weight release must be the exact
 named set in model.lock.json. Download a clean copy rather than
@@ -32,7 +41,7 @@ changing config or repacking weights.
 users without killing them. Discrete 24 GB and companion-model
 profiles are starting points, not fit guarantees.
 
-**Performance differs from the model card:** compare actual
+**Performance differs from these results:** compare actual
 prompts/output counts, caching, sampler, hardware, runtime
-commits, cache dtype and benchmark method. Published metrics
-were not remeasured during this recipe update.
+commits, KV cache mode and benchmark method. Raw measured values
+are in `bench/measured-results.json`.

@@ -10,11 +10,20 @@ ROOT = Path(__file__).resolve().parents[1]
 MODEL_ID = 'vcruz305/MiniCPM-V-4.7-35B-A3B-EXL3-SAGE-3.74bpw'
 ARCH = 'MiniCPMV4_7ForConditionalGeneration'
 PROFILES = {
-    'single': dict(context=8192, chunk=1024, vision=False),
-    'vision': dict(context=4096, chunk=512, vision=True),
-    '24gb': dict(context=4096, chunk=512, vision=False),
-    'companion': dict(context=4096, chunk=512, vision=False),
+    'single': dict(context=8192, chunk=1024, vision=False, cache='FP16'),
+    # Full 262,144-token context. Q4 KV is both smaller and faster at this length than FP16 KV
+    # (measured 45.0 vs 27.3 tok/s decode on one DGX Spark at 262,144 tokens).
+    'long': dict(context=262144, chunk=2048, vision=False, cache='Q4'),
+    'vision': dict(context=4096, chunk=512, vision=True, cache='FP16'),
+    '24gb': dict(context=4096, chunk=512, vision=False, cache='FP16'),
+    'companion': dict(context=4096, chunk=512, vision=False, cache='FP16'),
 }
+# Optional official dSparK drafter (Qwen3DSparkModel, bundled under dspark/ in the model repo).
+# Exact: output is identical to target-only greedy decoding. Faster only on short prompts; its
+# acceptance collapses as context grows, so it is opt-in and capped at DSPARK_MAX_CONTEXT.
+DRAFT_MODES = ('disabled', 'dspark')
+DSPARK_DEFAULT_TOKENS = 7
+DSPARK_MAX_CONTEXT = 8192
 
 def read_json(path: Path):
     return json.loads(path.read_text(encoding='utf-8'))
@@ -54,7 +63,9 @@ def config_from_env(env, model_dir: Path):
     chunk = int(env.get('CHUNK_SIZE', p['chunk']))
     port = int(env.get('PORT', 8898))
     vision = bool_value(env.get('VISION', str(p['vision'])))
-    mode = env.get('CACHE_MODE', 'FP16')
+    mode = env.get('CACHE_MODE', p['cache'])
+    draft = env.get('DRAFT_MODE', 'disabled')
+    draft_tokens = int(env.get('DRAFT_TOKENS', DSPARK_DEFAULT_TOKENS))
     if not 256 <= seq <= 262144: raise ValueError('MAX_SEQ_LEN must be 256..262144')
     if cache < seq or cache % 256: raise ValueError('CACHE_SIZE must cover MAX_SEQ_LEN and be a multiple of 256')
     if not 1 <= batch <= 32: raise ValueError('MAX_BATCH_SIZE must be 1..32')
@@ -62,8 +73,22 @@ def config_from_env(env, model_dir: Path):
     if not 1 <= port <= 65535: raise ValueError('Invalid TCP port')
     if mode not in ('FP16', 'Q8', 'Q6', 'Q4') and not re.fullmatch(r'[2-8],[2-8]', mode):
         raise ValueError('Unsupported CACHE_MODE')
-    if env.get('DRAFT_MODE', 'disabled') != 'disabled':
-        raise ValueError('Target-only remains the measured faster default. Optional dedicated dSparK serving requires a separately validated launch configuration')
+    if draft not in DRAFT_MODES:
+        raise ValueError(f'DRAFT_MODE must be one of {DRAFT_MODES}; this model has no MTP or n-gram path in the recipe')
+    if draft == 'dspark':
+        if seq > DSPARK_MAX_CONTEXT:
+            raise ValueError(f'DRAFT_MODE=dspark is limited to MAX_SEQ_LEN <= {DSPARK_MAX_CONTEXT}: the drafter is '
+                             'slower than target-only decoding on long prompts. Use PROFILE=long without a drafter.')
+        if vision:
+            raise ValueError('DRAFT_MODE=dspark does not support image inputs; use VISION=false')
+        if batch != 1:
+            raise ValueError('DRAFT_MODE=dspark was measured at MAX_BATCH_SIZE=1 only')
+        if not 1 <= draft_tokens <= 7:
+            raise ValueError('DRAFT_TOKENS must be 1..7 (one-pass exact verification is capped at 8 rows)')
+        draft_cfg = {'draft_mode': 'model', 'draft_model_dir': str(model_dir), 'draft_model_name': 'dspark',
+                     'draft_cache_mode': mode, 'draft_num_tokens': draft_tokens, 'dynamic_draft': False}
+    else:
+        draft_cfg = {'draft_mode': 'disabled'}
     return {
         'network': {'host': env.get('HOST', '127.0.0.1'), 'port': port,
                     'disable_auth': False, 'allowed_origins': [],
@@ -74,7 +99,7 @@ def config_from_env(env, model_dir: Path):
                   'chunk_size': chunk, 'vision': vision, 'tensor_parallel': False,
                   'inline_model_loading': False, 'use_dummy_models': False,
                   'prompt_template': None, 'tool_format': 'auto'},
-        'draft_model': {'draft_mode': 'disabled'},
+        'draft_model': draft_cfg,
         'sampling': {'override_preset': None},
         'logging': {'log_prompt': False, 'log_requests': False,
                     'log_generation_params': False, 'log_chat_completion_requests': False},

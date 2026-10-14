@@ -19,7 +19,7 @@ separate managed venv, builds ExLlamaV3 and installs TabbyAPI.
 It preserves the selected base PyTorch/Triton build; it does not
 install GPU drivers, modify unrelated checkouts, or start serving.
 
-`MAX_JOBS=4` controls build parallelism. GPU architecture is
+Build parallelism defaults to one nvcc job per core (capped by ~3 GiB of free memory per job); override with `MAX_JOBS`. Setup refuses to build if `ninja` is not runnable, since PyTorch would otherwise fall back to a much slower serial build. GPU architecture is
 detected automatically, with `TORCH_CUDA_ARCH_LIST` as an override.
 
 ## Updates
@@ -69,7 +69,7 @@ bash exllamav3-tabby/download.sh --include-drafter
 
 The separate quant file manifest is integrity-checked against
 the published release. It does not pin inference software.
-Downloading the optional dSparK does not enable acceleration.
+Downloading the optional dSparK does not enable it; set `DRAFT_MODE=dspark` at serve time.
 
 Download-only without a GPU environment:
 
